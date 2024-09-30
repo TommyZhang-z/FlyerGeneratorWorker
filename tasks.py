@@ -15,5 +15,3 @@ app = Celery("tasks", broker=redis_url, backend=redis_url)
 @app.task
 def generate_report(task_data):
     print(f"Generating report: {task_data}")
-    with open("report.txt", "w") as f:
-        f.write(f"Generating report: {task_data}")
