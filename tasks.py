@@ -12,6 +12,24 @@ redis_url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 app = Celery("tasks", broker=redis_url, backend=redis_url)
 
 
+# ID	Suburb	Address	Lot	Price	Rego	Facade	FloorPlan	Facade File	Floorplan File	Bedroom	Bathroom	Parking Slot
 @app.task
-def generate_report(task_data):
-    print(f"Generating report: {task_data}")
+def generate_flyer(
+    flyer_id,
+    suburb,
+    address,
+    lot,
+    price,
+    rego,
+    facade,
+    floorplan,
+    facade_file,
+    floorplan_file,
+    bedroom,
+    bathroom,
+    parking_slot,
+):
+    print(f"Generating flyer: {flyer_id}")
+    # prin facade_file and floorplan_file
+    print(facade_file)
+    print(floorplan_file)
