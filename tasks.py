@@ -49,119 +49,140 @@ def generate_flyer(
     parking_slot,
 ):
     print(f"Generating flyer: {flyer_id}")
-
-    # Load the template PDF
     template_pdf = "./flyer/FlyerTemplate.pdf"
-    temp_pdf = f"./flyer/temp_{flyer_id}.pdf"
-    output_pdf = f"./flyer/flyer_{flyer_id}.pdf"
+    now = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
+    temp_pdf = f"./flyer/temp_{flyer_id}_{now}.pdf"
+    output_pdf = f"./flyer/flyer_{flyer_id}_{now}.pdf"
 
-    # Create a new PDF document
-    pdf_document = fitz.open(template_pdf)
+    try:
+        # Load the template PDF
+        template_pdf = "./flyer/FlyerTemplate.pdf"
 
-    # Fetch the facade image from the URL
-    facade_response = requests.get(facade_file_url)
-    facade_image = BytesIO(facade_response.content)
-    add_png_to_pdf(pdf_document, 0, facade_image)
+        # Create a new PDF document
+        pdf_document = fitz.open(template_pdf)
 
-    floorplan_response = requests.get(floorplan_file_url)
-    floorplan_pdf = BytesIO(floorplan_response.content)
-    add_pdf_to_pdf_bottom_left(pdf_document, floorplan_pdf, 0)
+        # Fetch the facade image from the URL
+        facade_response = requests.get(facade_file_url)
+        facade_image = BytesIO(facade_response.content)
+        add_png_to_pdf(pdf_document, 0, facade_image)
 
-    pdf_document.save(temp_pdf)
-    pdf_document.close()
+        floorplan_response = requests.get(floorplan_file_url)
+        floorplan_pdf = BytesIO(floorplan_response.content)
+        add_pdf_to_pdf_bottom_left(pdf_document, floorplan_pdf, 0)
 
-    reader = PyPDF2.PdfReader(temp_pdf)
-    writer = PyPDF2.PdfWriter()
+        pdf_document.save(temp_pdf)
+        pdf_document.close()
 
-    text_data = {
-        "suburb": (suburb, 21, (11.2 / 210 * A4[0], 20.8 / 297 * A4[1]), "Inter-Bold"),
-        "address": (
-            address,
-            12,
-            (11.2 / 210 * A4[0], 28.9 / 297 * A4[1]),
-            "Inter-Regular",
-        ),
-        "lot_number": (
-            f"LOT {lot}",
-            8,
-            (22.64 / 210 * A4[0], 37.5 / 297 * A4[1]),
-            "Inter-SemiBold",
-            (1, 1, 1),
-            "center",
-        ),
-        "land_size": (
-            f"{land_size}m²",
-            10,
-            (32.0 / 210 * A4[0], 53.30 / 297 * A4[1]),
-            "Inter-Light",
-        ),
-        "house_size": (
-            f"{house_size}m²",
-            10,
-            (35.0 / 210 * A4[0], 62.56 / 297 * A4[1]),
-            "Inter-Light",
-        ),
-        "lot_width": (
-            f"{lot_width}m",
-            10,
-            (41.45 / 210 * A4[0], 72.12 / 297 * A4[1]),
-            "Inter-Light",
-        ),
-        "land_price": (
-            f"{land_price}",
-            10,
-            (36.05 / 210 * A4[0], 88.76 / 297 * A4[1]),
-            "Inter-Light",
-        ),
-        "rego": (rego, 10, (11.744 / 210 * A4[0], 108.0 / 297 * A4[1]), "Inter-Light"),
-        "facade": (
-            facade,
-            14,
-            (98.844 / 210 * A4[0], 119.0 / 297 * A4[1]),
-            "Inter-Bold",
-            (0, 0, 0),
-            "center",
-        ),
-        "beds": (
-            str(bedroom),
-            12,
-            (136.744 / 210 * A4[0], 119.3 / 297 * A4[1]),
-            "Inter-Regular",
-            (0, 0, 0),
-        ),
-        "baths": (
-            str(bathroom),
-            12,
-            (165.744 / 210 * A4[0], 119.3 / 297 * A4[1]),
-            "Inter-Regular",
-            (0, 0, 0),
-        ),
-        "car_spaces": (
-            str(parking_slot),
-            12,
-            (194.744 / 210 * A4[0], 119.3 / 297 * A4[1]),
-            "Inter-Regular",
-            (0, 0, 0),
-        ),
-    }
-    add_all_text_to_pdf(writer, reader.pages[0], text_data)
+        reader = PyPDF2.PdfReader(temp_pdf)
+        writer = PyPDF2.PdfWriter()
 
-    with open(output_pdf, "wb") as f_out:
-        writer.write(f_out)
+        text_data = {
+            "suburb": (
+                suburb,
+                21,
+                (11.2 / 210 * A4[0], 20.8 / 297 * A4[1]),
+                "Inter-Bold",
+            ),
+            "address": (
+                address,
+                12,
+                (11.2 / 210 * A4[0], 28.9 / 297 * A4[1]),
+                "Inter-Regular",
+            ),
+            "lot_number": (
+                f"LOT {lot}",
+                8,
+                (22.64 / 210 * A4[0], 37.5 / 297 * A4[1]),
+                "Inter-SemiBold",
+                (1, 1, 1),
+                "center",
+            ),
+            "land_size": (
+                f"{land_size}m²",
+                10,
+                (32.0 / 210 * A4[0], 53.30 / 297 * A4[1]),
+                "Inter-Light",
+            ),
+            "house_size": (
+                f"{house_size}m²",
+                10,
+                (35.0 / 210 * A4[0], 62.56 / 297 * A4[1]),
+                "Inter-Light",
+            ),
+            "lot_width": (
+                f"{lot_width}m",
+                10,
+                (41.45 / 210 * A4[0], 72.12 / 297 * A4[1]),
+                "Inter-Light",
+            ),
+            "land_price": (
+                f"{land_price}",
+                10,
+                (36.05 / 210 * A4[0], 88.76 / 297 * A4[1]),
+                "Inter-Light",
+            ),
+            "rego": (
+                rego,
+                10,
+                (11.744 / 210 * A4[0], 108.0 / 297 * A4[1]),
+                "Inter-Light",
+            ),
+            "facade": (
+                facade,
+                14,
+                (98.844 / 210 * A4[0], 119.0 / 297 * A4[1]),
+                "Inter-Bold",
+                (0, 0, 0),
+                "center",
+            ),
+            "beds": (
+                str(bedroom),
+                12,
+                (136.744 / 210 * A4[0], 119.3 / 297 * A4[1]),
+                "Inter-Regular",
+                (0, 0, 0),
+            ),
+            "baths": (
+                str(bathroom),
+                12,
+                (165.744 / 210 * A4[0], 119.3 / 297 * A4[1]),
+                "Inter-Regular",
+                (0, 0, 0),
+            ),
+            "car_spaces": (
+                str(parking_slot),
+                12,
+                (194.744 / 210 * A4[0], 119.3 / 297 * A4[1]),
+                "Inter-Regular",
+                (0, 0, 0),
+            ),
+        }
+        add_all_text_to_pdf(writer, reader.pages[0], text_data)
 
-    print(f"Flyer generated: {output_pdf}")
+        with open(output_pdf, "wb") as f_out:
+            writer.write(f_out)
 
-    upload_path = f"/flyer/flyer_{flyer_id}_{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}.pdf"
+        print(f"Flyer generated: {output_pdf}")
 
-    with open(output_pdf, "rb") as f:
-        dbx.files_upload(
-            f.read(),
-            upload_path,
-        )
+        upload_path = f"/flyer/flyer_{flyer_id}_{now}.pdf"
 
-    print("Uploaded to Dropbox, cleaning up...")
-    os.remove(temp_pdf)
-    os.remove(output_pdf)
+        with open(output_pdf, "rb") as f:
+            dbx.files_upload(
+                f.read(),
+                upload_path,
+            )
 
-    print("Cleaned up, task complete")
-    return upload_path
+        print("Uploaded to Dropbox")
+        return upload_path
+
+    except Exception as e:
+        print(f"Error generating flyer: {str(e)}")
+        raise
+
+    finally:
+        print("Cleaning up...")
+        if os.path.exists(temp_pdf):
+            os.remove(temp_pdf)
+        if os.path.exists(output_pdf):
+            os.remove(output_pdf)
+        print("Cleaned up, task complete")
