@@ -21,6 +21,7 @@ DROPBOX_REFRESH_TOKEN = os.getenv("DROPBOX_REFRESH_TOKEN", "")
 
 # Initialize Celery app
 app = Celery("tasks", broker=redis_url, backend=redis_url)
+app.conf.broker_connection_retry_on_startup = True
 dbx = dropbox.Dropbox(
     app_key=DROPBOX_APP_KEY,
     app_secret=DROPBOX_APP_SECRET,
@@ -35,18 +36,19 @@ def generate_flyer(
     address,
     lot,
     price,
+    land_price,
     land_size,
     house_size,
     lot_width,
-    land_price,
     rego,
     facade,
     floorplan,
-    facade_file_url,
-    floorplan_file_url,
     bedroom,
     bathroom,
     parking_slot,
+    facade_file_url,
+    floorplan_file_url,
+    generate,
 ):
     print(f"Generating flyer: {flyer_id}")
     template_pdf = "./flyer/FlyerTemplate.pdf"
