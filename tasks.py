@@ -10,6 +10,7 @@ from image_utils import add_png_to_pdf, add_pdf_to_pdf_bottom_left
 from reportlab.lib.pagesizes import A4
 import dropbox
 import datetime
+from helper import convert_to_currency, convert_to_syd_time
 
 load_dotenv(".env.local")
 
@@ -118,13 +119,13 @@ def generate_flyer(
                 "Inter-Light",
             ),
             "land_price": (
-                f"{land_price}",
+                convert_to_currency(land_price),
                 10,
                 (36.05 / 210 * A4[0], 88.76 / 297 * A4[1]),
                 "Inter-Light",
             ),
             "rego": (
-                rego,
+                convert_to_syd_time(rego),
                 10,
                 (11.744 / 210 * A4[0], 108.0 / 297 * A4[1]),
                 "Inter-Light",
