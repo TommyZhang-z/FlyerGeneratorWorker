@@ -2,7 +2,7 @@ import fitz
 from io import BytesIO
 
 
-def add_png_to_pdf(pdf_document, page_number, png_file):
+def add_facade(pdf_document, page_number, png_file):
     page = pdf_document[page_number]
     page_rect = page.rect
 
@@ -20,7 +20,7 @@ def add_png_to_pdf(pdf_document, page_number, png_file):
     )
 
 
-def add_pdf_to_pdf_bottom_left(target_pdf, source_pdf, page_number):
+def add_floorplan(target_pdf, source_pdf, page_number):
     source_doc = fitz.open(stream=source_pdf)
     target_page = target_pdf[page_number]
     target_rect = target_page.rect
@@ -34,3 +34,22 @@ def add_pdf_to_pdf_bottom_left(target_pdf, source_pdf, page_number):
 
     target_page.show_pdf_page(insert_rect, source_doc, 0)
     source_doc.close()
+
+
+def add_banner(pdf_document, page_number, png_file):
+    page = pdf_document[page_number]
+    page_rect = page.rect
+
+    image_width = 61.8 / 210 * page_rect.width
+    image_height = 21.3 / 297 * page_rect.height
+
+    x1 = page_rect.width - image_width
+    # Position the banner 20 units from the bottom (in 297-unit scale)
+    y1 = page_rect.height - image_height - (267.5 / 297 * page_rect.height)
+    x2 = page_rect.width
+    y2 = y1 + image_height
+
+    page.insert_image(
+        fitz.Rect(x1, y1, x2, y2),
+        filename=png_file,
+    )

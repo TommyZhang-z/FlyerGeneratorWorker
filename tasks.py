@@ -6,7 +6,7 @@ import fitz
 import requests
 from io import BytesIO
 from text_utils import add_all_text_to_pdf
-from image_utils import add_png_to_pdf, add_pdf_to_pdf_bottom_left
+from image_utils import add_banner, add_facade, add_floorplan
 from reportlab.lib.pagesizes import A4
 import dropbox
 import datetime
@@ -59,7 +59,7 @@ def generate_flyer(
 
     try:
         # Load the template PDF
-        template_pdf = "./flyer/FlyerTemplate.pdf"
+        template_pdf = "./flyer/7Star_FlyerTemplate.pdf"
 
         # Create a new PDF document
         pdf_document = fitz.open(template_pdf)
@@ -67,11 +67,13 @@ def generate_flyer(
         # Fetch the facade image from the URL
         facade_response = requests.get(facade_file_url)
         facade_image = BytesIO(facade_response.content)
-        add_png_to_pdf(pdf_document, 0, facade_image)
+        add_facade(pdf_document, 0, facade_image)
+
+        add_banner(pdf_document, 0, "./flyer/banner_new.png")
 
         floorplan_response = requests.get(floorplan_file_url)
         floorplan_pdf = BytesIO(floorplan_response.content)
-        add_pdf_to_pdf_bottom_left(pdf_document, floorplan_pdf, 0)
+        add_floorplan(pdf_document, floorplan_pdf, 0)
 
         pdf_document.save(temp_pdf)
         pdf_document.close()
@@ -99,6 +101,19 @@ def generate_flyer(
                 "Inter-SemiBold",
                 (1, 1, 1),
                 "center",
+            ),
+            "package_price": (
+                f"Package Price",
+                16,
+                (161 / 210 * A4[0], 17.30 / 297 * A4[1]),
+                "Inter-Bold",
+            ),
+            "price": (
+                convert_to_currency(price),
+                16,
+                (161 / 210 * A4[0], 24.30 / 297 * A4[1]),
+                "Inter-Bold",
+                # (0, 0, 0),
             ),
             "land_size": (
                 f"{land_size}m²",
@@ -130,8 +145,8 @@ def generate_flyer(
                 (11.744 / 210 * A4[0], 108.0 / 297 * A4[1]),
                 "Inter-Light",
             ),
-            "facade": (
-                facade,
+            "floorplan": (
+                floorplan,
                 14,
                 (98.844 / 210 * A4[0], 119.0 / 297 * A4[1]),
                 "Inter-Bold",

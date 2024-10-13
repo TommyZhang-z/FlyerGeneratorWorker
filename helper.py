@@ -18,7 +18,7 @@ def convert_to_syd_time(time_str):
         return time_str
 
 
-def convert_to_currency(price):
+def convert_to_currency(price: int | float) -> str:
     """
     Convert a price to a currency string
 
