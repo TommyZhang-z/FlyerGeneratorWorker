@@ -33,17 +33,18 @@ dbx = dropbox.Dropbox(
 @app.task
 def generate_flyer(
     flyer_id,
+    property_id,
+    facade,
+    floorplan,
+    price,
     suburb,
     address,
     lot,
-    price,
     land_price,
     land_size,
     house_size,
     lot_width,
     rego,
-    facade,
-    floorplan,
     bedroom,
     bathroom,
     parking_slot,
@@ -55,7 +56,7 @@ def generate_flyer(
     template_pdf = "./flyer/FlyerTemplate.pdf"
     now = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
     temp_pdf = f"./flyer/temp_{flyer_id}_{now}.pdf"
-    output_pdf = f"./flyer/flyer_{flyer_id}_{now}.pdf"
+    output_pdf = f"./flyer/{flyer_id}_{now}.pdf"
 
     try:
         # Load the template PDF
@@ -182,7 +183,7 @@ def generate_flyer(
 
         print(f"Flyer generated: {output_pdf}")
 
-        upload_path = f"/flyer/flyer_{flyer_id}_{now}.pdf"
+        upload_path = f"/flyer/{flyer_id}_{now}.pdf"
 
         with open(output_pdf, "rb") as f:
             dbx.files_upload(
