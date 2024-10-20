@@ -1,11 +1,9 @@
 from io import BytesIO
-import PyPDF2
 import fitz
-from image_utils import add_facade, add_floorplan, add_banner
-from text_utils import add_all_text_to_pdf
 from helper import convert_to_currency, convert_to_syd_time
-from reportlab.lib.pagesizes import A4
-import requests
+from image_utils import add_facade
+from models import Image, PDF, Text, Font
+import config as cfg
 
 # Test variables
 flyer_id = "TEST002"
@@ -30,123 +28,115 @@ bedroom = 6
 bathroom = 4
 parking_slot = 2
 
-# template_pdf = "./flyer/FlyerTemplate.pdf"
-template_pdf = "./flyer/7Star_FlyerTemplate.pdf"
-pdf_document = fitz.open(template_pdf)
 
-# Fetch the facade image from the URL
-facade_response = requests.get(facade_file_url)
-facade_image = BytesIO(facade_response.content)
-add_facade(pdf_document, 0, facade_image)
+pdf_document = fitz.open("./flyer/Empty_Screen.pdf")
+digital_pdf = PDF(pdf_document)
 
-
-add_banner(pdf_document, 0, "./flyer/banner_new.png")
-floorplan_response = requests.get(floorplan_file_url)
-floorplan_pdf = BytesIO(floorplan_response.content)
-add_floorplan(pdf_document, floorplan_pdf, 0)
-
-# pdf_document.save("./flyer/test.pdf")
-pdf_document.save("./flyer/7Star_FlyerTemplate_WithBanner.pdf")
-pdf_document.close()
+# register fonts
+digital_pdf.insert_font(Font.INTER_LIGHT)
+digital_pdf.insert_font(Font.INTER_REGULAR)
+digital_pdf.insert_font(Font.INTER_BOLD)
+digital_pdf.insert_font(Font.INTER_SEMIBOLD)
 
 
-reader = PyPDF2.PdfReader("./flyer/7Star_FlyerTemplate_WithBanner.pdf")
-writer = PyPDF2.PdfWriter()
+with open("./flyer/facade.png", "rb") as facade_file, open("./flyer/banner.png", "rb") as banner_file, open("./flyer/fp.pdf", "rb") as fp_file, open("./flyer/logo.png", "rb") as logo_file:
+    facade = Image(facade_file.read())
+    banner = Image(banner_file.read())
+    logo = Image(logo_file.read())
+    fp = PDF(fitz.open(fp_file))
 
-text_data = {
-    "suburb": (
-        suburb,
-        21,
-        (11.2 / 210 * A4[0], 20.8 / 297 * A4[1]),
-        "Inter-Bold",
-    ),
-    "address": (
-        address,
-        12,
-        (11.2 / 210 * A4[0], 28.9 / 297 * A4[1]),
-        "Inter-Regular",
-    ),
-    "lot_number": (
-        f"LOT {lot}",
-        8,
-        (22.64 / 210 * A4[0], 37.5 / 297 * A4[1]),
-        "Inter-SemiBold",
-        (1, 1, 1),
-        "center",
-    ),
-    "package_price": (
-        f"Package Price",
-        16,
-        (161 / 210 * A4[0], 17.30 / 297 * A4[1]),
-        "Inter-Bold",
-    ),
-    "price": (
-        convert_to_currency(price),
-        16,
-        (161 / 210 * A4[0], 24.30 / 297 * A4[1]),
-        "Inter-Bold",
-        # (0, 0, 0),
-    ),
-    "land_size": (
-        f"{land_size}m²",
-        10,
-        (32.0 / 210 * A4[0], 53.30 / 297 * A4[1]),
-        "Inter-Light",
-    ),
-    "house_size": (
-        f"{house_size}m²",
-        10,
-        (35.0 / 210 * A4[0], 62.56 / 297 * A4[1]),
-        "Inter-Light",
-    ),
-    "lot_width": (
-        f"{lot_width}m",
-        10,
-        (41.45 / 210 * A4[0], 72.12 / 297 * A4[1]),
-        "Inter-Light",
-    ),
-    "land_price": (
-        convert_to_currency(land_price),
-        10,
-        (36.05 / 210 * A4[0], 88.76 / 297 * A4[1]),
-        "Inter-Light",
-    ),
-    "rego": (
-        convert_to_syd_time(rego),
-        10,
-        (11.744 / 210 * A4[0], 108.0 / 297 * A4[1]),
-        "Inter-Light",
-    ),
-    "floorplan": (
-        floorplan,
-        14,
-        (98.844 / 210 * A4[0], 119.0 / 297 * A4[1]),
-        "Inter-Bold",
-        (0, 0, 0),
-        "center",
-    ),
-    "beds": (
-        str(bedroom),
-        12,
-        (136.744 / 210 * A4[0], 119.3 / 297 * A4[1]),
-        "Inter-Regular",
-        (0, 0, 0),
-    ),
-    "baths": (
-        str(bathroom),
-        12,
-        (165.744 / 210 * A4[0], 119.3 / 297 * A4[1]),
-        "Inter-Regular",
-        (0, 0, 0),
-    ),
-    "car_spaces": (
-        str(parking_slot),
-        12,
-        (194.744 / 210 * A4[0], 119.3 / 297 * A4[1]),
-        "Inter-Regular",
-        (0, 0, 0),
-    ),
-}
-add_all_text_to_pdf(writer, reader.pages[0], text_data)
-with open("./flyer/test01.pdf", "wb") as f_out:
-    writer.write(f_out)
+# To add an image without stretching (using original dimensions)
+digital_pdf.add_image(facade, position=(0, 0), stretch=True)
+digital_pdf.add_image(banner, position=(841.8900146484375-179.2, 44), image_size=(179.2, 56))
+digital_pdf.add_pdf(fp, position=(35, 632), size=(175/297*841.8900146484375, 125/420*1190.550048828125))
+
+digital_texts = [
+    # Lot info
+    Text(text="Leppington", size=27, position=(58.88, 513.90), font=Font.INTER_BOLD, color=(1, 1, 1)),
+    Text(text="16A Bannister Ave", size=14, position=(60.5, 541.3), font=Font.INTER_REGULAR, color=(1, 1, 1)),
+    Text(text="LOT 124", size=9, position=(300.5, 503), font=Font.INTER_SEMIBOLD, color=(1, 1, 1), align="center"),
+    Text(text="11 Oct 2024", size=10, position=(267, 544), font=Font.INTER_LIGHT, color=(1, 1, 1)),
+    Text(text="100m²", size=10, position=(499, 500.3), font=Font.INTER_BOLD, color=(1, 1, 1)),
+    # Text(text="100m²", size=10, position=(510, 500.3), font=Font.INTER_BOLD, color=(1, 1, 1)),
+    Text(text="100m²", size=10, position=(510, 522.9), font=Font.INTER_BOLD, color=(1, 1, 1)),
+    Text(text="10m", size=10, position=(502.4, 545.2), font=Font.INTER_BOLD, color=(1, 1, 1)),
+    # Text(text="10m", size=10, position=(510, 545.2), font=Font.INTER_BOLD, color=(1, 1, 1)),
+    Text(text="$8,000,000", size=10, position=(698, 500.0), font=Font.INTER_BOLD, color=(1, 1, 1)),
+    # Text(text="$8,000,000", size=10, position=(714.2, 500.0), font=Font.INTER_BOLD, color=(1, 1, 1)),
+    Text(text="$8,000,000", size=10, position=(704.3, 522.4), font=Font.INTER_BOLD, color=(1, 1, 1)),
+    # Text(text="$8,000,000", size=10, position=(714.2, 522.4), font=Font.INTER_BOLD, color=(1, 1, 1)),
+    Text(text="$10,000,000", size=10, position=(714.2, 545.0), font=Font.INTER_BOLD, color=(1, 1, 1)),
+
+    # Banner text
+    Text(text="Package Price", size=17, position=(841.8900146484375-179.2+38, 67.2), font=Font.INTER_BOLD, color=(1, 1, 1)),
+    Text(text="$10,000,000", size=17, position=(841.8900146484375-179.2+38, 88.0), font=Font.INTER_BOLD, color=(1, 1, 1)),
+
+    # Floorplan info
+    Text(text="PALM 21 ND", size=15, position=(589.5, 675.7), font=Font.INTER_BOLD, color=(0, 0, 0)),
+    Text(text="3", size=13, position=(617.8, 719.4), font=Font.INTER_REGULAR, color=(0, 0, 0)),
+    Text(text="3", size=13, position=(702.55, 719.4), font=Font.INTER_REGULAR, color=(0, 0, 0)),
+    Text(text="3", size=13, position=(786.9, 719.4), font=Font.INTER_REGULAR, color=(0, 0, 0)),
+]
+
+for text in digital_texts:
+    digital_pdf.add_text(text)
+
+
+digital_pdf.pdf_file.save("./flyer/Digital.pdf")
+digital_pdf.pdf_file.close()
+
+
+pdf_document = fitz.open("./flyer/Empty_Print.pdf")
+printable_pdf = PDF(pdf_document)
+
+printable_pdf.insert_font(Font.INTER_LIGHT)
+printable_pdf.insert_font(Font.INTER_REGULAR)
+printable_pdf.insert_font(Font.INTER_BOLD)
+printable_pdf.insert_font(Font.INTER_SEMIBOLD)
+
+# To add an image without stretching (using original dimensions)
+printable_pdf.add_image(facade, position=(0, 0), stretch=True)
+printable_pdf.add_image(logo, position=(10, 10), image_size=(79/2, 15/2))
+printable_pdf.add_image(banner, position=(841.8900146484375-179.2, 44), image_size=(179.2, 56))
+printable_pdf.add_pdf(fp, position=(35, 47), size=(175/297*841.8900146484375, 125/420*1190.550048828125), page_number=1)
+
+
+printable_texts_1 = [
+    Text(text="Leppington", size=27, position=(37.14, 513.90-2), font=Font.INTER_BOLD, color=(1, 1, 1)),
+    Text(text="16A Bannister Ave", size=14, position=(38.16, 541.3-2), font=Font.INTER_REGULAR, color=(1, 1, 1)),
+    Text(text="LOT 124", size=9, position=(300.5-38, 503-2), font=Font.INTER_SEMIBOLD, color=(1, 1, 1), align="center"),
+    Text(text="11 Oct 2024", size=10, position=(267-38, 544-2), font=Font.INTER_LIGHT, color=(1, 1, 1)),
+    Text(text="100m²", size=10, position=(499-63.80, 500.3-2), font=Font.INTER_BOLD, color=(1, 1, 1)),
+    # Text(text="100m²", size=10, position=(510-63.80, 500.3-2), font=Font.INTER_BOLD, color=(1, 1, 1)),
+    Text(text="100m²", size=10, position=(510-63.80, 522.9-2), font=Font.INTER_BOLD, color=(1, 1, 1)),
+    Text(text="10m", size=10, position=(502.4-63.80, 545.2-2), font=Font.INTER_BOLD, color=(1, 1, 1)),
+    # Text(text="10m", size=10, position=(510-63.80, 545.2-2), font=Font.INTER_BOLD, color=(1, 1, 1)),
+    Text(text="$8,000,000", size=10, position=(698-115.8, 500.0-2), font=Font.INTER_BOLD, color=(1, 1, 1)),
+    # Text(text="$8,000,000", size=10, position=(714.2-115.8, 500.0-2), font=Font.INTER_BOLD, color=(1, 1, 1)),
+    Text(text="$8,000,000", size=10, position=(704.3-115.8, 522.4-2), font=Font.INTER_BOLD, color=(1, 1, 1)),
+    # Text(text="$8,000,000", size=10, position=(714.2-115.8, 522.4-2), font=Font.INTER_BOLD, color=(1, 1, 1)),
+    Text(text="$10,000,000", size=10, position=(714.2-115.8, 545.0-2), font=Font.INTER_BOLD, color=(1, 1, 1)),
+    Text(text="3", size=10, position=(780.2-2, 500.0-2), font=Font.INTER_BOLD, color=(1, 1, 1)),
+    Text(text="3", size=10, position=(780.2, 523.4-2), font=Font.INTER_BOLD, color=(1, 1, 1)),
+    Text(text="2", size=10, position=(780.2-9, 545.5-2), font=Font.INTER_BOLD, color=(1, 1, 1)),
+
+    # Banner text
+    Text(text="Package Price", size=17, position=(841.8900146484375-179.2+38, 67.2), font=Font.INTER_BOLD, color=(1, 1, 1)),
+    Text(text="$10,000,000", size=17, position=(841.8900146484375-179.2+38, 88.0), font=Font.INTER_BOLD, color=(1, 1, 1)),
+]
+
+for text in printable_texts_1:
+    printable_pdf.add_text(text, 0)
+
+printable_texts_2 = [
+    Text(text="PALM 21 ND", size=15, position=(589.5, 675.7), font=Font.INTER_BOLD, color=(0, 0, 0)),
+    Text(text="3", size=13, position=(617.8, 719.4), font=Font.INTER_REGULAR, color=(0, 0, 0)),
+    Text(text="3", size=13, position=(702.55, 719.4), font=Font.INTER_REGULAR, color=(0, 0, 0)),
+    Text(text="3", size=13, position=(786.9, 719.4), font=Font.INTER_REGULAR, color=(0, 0, 0)),
+]
+
+for text in printable_texts_2:
+    printable_pdf.add_text(text, 1)
+
+printable_pdf.pdf_file.save("./flyer/Printable.pdf")
+printable_pdf.pdf_file.close()

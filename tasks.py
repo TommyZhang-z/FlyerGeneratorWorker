@@ -15,13 +15,13 @@ from helper import convert_to_currency, convert_to_syd_time
 load_dotenv(".env.local")
 
 # Get Redis URL from environment or use default
-redis_url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 DROPBOX_APP_KEY = os.getenv("DROPBOX_APP_KEY", "")
 DROPBOX_APP_SECRET = os.getenv("DROPBOX_APP_SECRET", "")
 DROPBOX_REFRESH_TOKEN = os.getenv("DROPBOX_REFRESH_TOKEN", "")
 
 # Initialize Celery app
-app = Celery("tasks", broker=redis_url, backend=redis_url)
+app = Celery("tasks", broker=REDIS_URL, backend=REDIS_URL)
 app.conf.broker_connection_retry_on_startup = True
 dbx = dropbox.Dropbox(
     app_key=DROPBOX_APP_KEY,

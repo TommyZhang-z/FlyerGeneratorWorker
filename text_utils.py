@@ -179,4 +179,4 @@ def add_all_text_to_pdf(writer, page, text_data):
 
 # # Write the result to the output PDF
 # with open(output_pdf, "wb") as f_out:
-#     writer.write(f_out)
+#     writer.write(f_out

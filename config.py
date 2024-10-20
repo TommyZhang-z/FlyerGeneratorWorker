@@ -1,0 +1,1 @@
+FONT_FOLDER = "fonts"
