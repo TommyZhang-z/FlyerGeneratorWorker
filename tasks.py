@@ -15,6 +15,10 @@ import fitz
 load_dotenv(".env.local")
 
 # Get Redis URL from environment or use default
+os.makedirs(cfg.TEMP_DIR, exist_ok=True)
+os.makedirs(cfg.DIGITAL_DIR, exist_ok=True)
+os.makedirs(cfg.PRINTABLE_DIR, exist_ok=True)
+
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 DROPBOX_APP_KEY = os.getenv("DROPBOX_APP_KEY", "")
 DROPBOX_APP_SECRET = os.getenv("DROPBOX_APP_SECRET", "")
