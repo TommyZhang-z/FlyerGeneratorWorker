@@ -7,10 +7,13 @@ import os
 
 
 class Font(Enum):
-    INTER_LIGHT = ("Inter-Light", os.path.join(cfg.FONT_FOLDER, "Inter-Light.ttf"))
-    INTER_REGULAR = ("Inter-Regular", os.path.join(cfg.FONT_FOLDER, "Inter-Regular.ttf"))
-    INTER_BOLD = ("Inter-Bold", os.path.join(cfg.FONT_FOLDER, "Inter-Bold.ttf"))
-    INTER_SEMIBOLD = ("Inter-SemiBold", os.path.join(cfg.FONT_FOLDER, "Inter-SemiBold.ttf"))
+    INTER_LIGHT = ("Inter-Light", os.path.join(cfg.FONTS_DIR, "Inter-Light.ttf"))
+    INTER_REGULAR = ("Inter-Regular", os.path.join(cfg.FONTS_DIR, "Inter-Regular.ttf"))
+    INTER_BOLD = ("Inter-Bold", os.path.join(cfg.FONTS_DIR, "Inter-Bold.ttf"))
+    INTER_SEMIBOLD = (
+        "Inter-SemiBold",
+        os.path.join(cfg.FONTS_DIR, "Inter-SemiBold.ttf"),
+    )
 
     def __init__(self, font_name: str, font_path: str):
         self.font_name = font_name
@@ -19,13 +22,12 @@ class Font(Enum):
 
     def get_font_name(self):
         return self.value[0]
-    
+
     def get_font_path(self):
         return self.value[1]
-    
+
     def get_font_obj(self):
         return self.font_obj
-    
 
 
 @dataclass
@@ -41,6 +43,7 @@ class Text:
 class Image(BytesIO):
     pass
 
+
 @dataclass
 class PDF:
     pdf_file: fitz.Document
@@ -49,14 +52,21 @@ class PDF:
         for page in self.pdf_file:
             page.insert_font(font.get_font_name(), font.get_font_path())
 
-    def add_image(self, image: Image, position: tuple[float, float] = (0, 0), page_number: int = 0, stretch: bool = False, image_size: tuple[float, float]|None = None):
+    def add_image(
+        self,
+        image: Image,
+        position: tuple[float, float] = (0, 0),
+        page_number: int = 0,
+        stretch: bool = False,
+        image_size: tuple[float, float] | None = None,
+    ):
         page = self.pdf_file[page_number]
         img = fitz.Pixmap(image.getvalue())
-        
+
         if stretch:
             # Calculate the aspect ratio of the image
             aspect_ratio = img.width / img.height
-            
+
             # Set the image width to match the page width
             img_width = page.rect.width
             img_height = img_width / aspect_ratio
@@ -67,13 +77,15 @@ class PDF:
             # Use the original image dimensions
             img_width = img.width
             img_height = img.height
-        
+
         # Create the image rectangle
-        img_rect = fitz.Rect(position[0], position[1], position[0] + img_width, position[1] + img_height)
-        
+        img_rect = fitz.Rect(
+            position[0], position[1], position[0] + img_width, position[1] + img_height
+        )
+
         # Insert the image
         page.insert_image(img_rect, stream=image.getvalue())
-        
+
         # Clean up
         img = None
 
@@ -81,17 +93,17 @@ class PDF:
         page = self.pdf_file[page_number]
         # text_width = page.get_text_length(text.text, fontsize=text.size, fontname=text.font.get_font_name())
         font = text.font
-        
+
         # Calculate the text width using fitz.get_text_length
-        text_width = text.font.get_font_obj().text_length(text.text, text.size)
-        
+        text_width = font.get_font_obj().text_length(text.text, text.size)
+
         # Adjust the x-coordinate based on the alignment
         x, y = text.position
         if text.align == "center":
             x = x - text_width / 2
         elif text.align == "right":
             x = x - text_width
-        
+
         # Insert the text with the adjusted position
         page.insert_text(
             point=(x, y),
@@ -101,10 +113,15 @@ class PDF:
             color=text.color,
         )
 
-    def add_pdf(self, pdf: "PDF", position: tuple[float, float] = (0, 0), size: tuple[float, float] | None = None, page_number: int = 0):
+    def add_pdf(
+        self,
+        pdf: "PDF",
+        position: tuple[float, float] = (0, 0),
+        size: tuple[float, float] | None = None,
+        page_number: int = 0,
+    ):
         page = self.pdf_file[page_number]
         rect = page.rect
-        print(rect)
 
         # Calculate insert dimensions
         if size:
@@ -121,8 +138,3 @@ class PDF:
 
         # Insert the PDF
         page.show_pdf_page(insert_rect, pdf.pdf_file, 0)
-    
-
-
-
-

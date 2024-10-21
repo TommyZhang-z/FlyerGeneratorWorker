@@ -1,16 +1,16 @@
+from io import BytesIO
 import os
-import PyPDF2
 from dotenv import load_dotenv
 from celery import Celery
-import fitz
-import requests
-from io import BytesIO
-from text_utils import add_all_text_to_pdf
-from image_utils import add_banner, add_facade, add_floorplan
-from reportlab.lib.pagesizes import A4
+from data import TEXT_DATA
+from models import PDF, Font, Image, Text
 import dropbox
 import datetime
 from helper import convert_to_currency, convert_to_syd_time
+import requests
+import logging
+import config as cfg
+import fitz
 
 load_dotenv(".env.local")
 
@@ -19,6 +19,10 @@ REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 DROPBOX_APP_KEY = os.getenv("DROPBOX_APP_KEY", "")
 DROPBOX_APP_SECRET = os.getenv("DROPBOX_APP_SECRET", "")
 DROPBOX_REFRESH_TOKEN = os.getenv("DROPBOX_REFRESH_TOKEN", "")
+
+BANNER_PATH = os.path.join(cfg.ASSETS_DIR, "banner.png")
+EMPTY_DIGITAL_PATH = os.path.join(cfg.ASSETS_DIR, "Empty_Digital.pdf")
+EMPTY_PRINTABLE_PATH = os.path.join(cfg.ASSETS_DIR, "Empty_Printable.pdf")
 
 # Initialize Celery app
 app = Celery("tasks", broker=REDIS_URL, backend=REDIS_URL)
@@ -35,12 +39,13 @@ def generate_flyer(
     flyer_id,
     property_id,
     facade,
-    floorplan,
+    floorplan_model,
     price,
     suburb,
     address,
     lot,
     land_price,
+    house_price,
     land_size,
     house_size,
     lot_width,
@@ -52,147 +57,224 @@ def generate_flyer(
     floorplan_file_url,
     generate,
 ):
-    print(f"Generating flyer: {flyer_id}")
-    template_pdf = "./flyer/FlyerTemplate.pdf"
+    logging.info(f"generating flyer [#{flyer_id}] ...")
+
     now = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
-    temp_pdf = f"./flyer/temp_{flyer_id}_{now}.pdf"
-    output_pdf = f"./flyer/{flyer_id}_{now}.pdf"
+    file_name = f"{flyer_id}_{now}.pdf"
+
+    digital_path = os.path.join(cfg.DIGITAL_DIR, file_name)
+    printable_path = os.path.join(cfg.PRINTABLE_DIR, file_name)
+    dropbox_digital_path = f"{cfg.DROPBOX_DIGITAL_PATH}/{file_name}"
+    dropbox_printable_path = f"{cfg.DROPBOX_PRINTABLE_PATH}/{file_name}"
 
     try:
-        # Load the template PDF
-        template_pdf = "./flyer/7Star_FlyerTemplate.pdf"
-
-        # Create a new PDF document
-        pdf_document = fitz.open(template_pdf)
-
-        # Fetch the facade image from the URL
-        facade_response = requests.get(facade_file_url)
-        facade_image = BytesIO(facade_response.content)
-        add_facade(pdf_document, 0, facade_image)
-
-        add_banner(pdf_document, 0, "./flyer/banner_new.png")
-
-        floorplan_response = requests.get(floorplan_file_url)
-        floorplan_pdf = BytesIO(floorplan_response.content)
-        add_floorplan(pdf_document, floorplan_pdf, 0)
-
-        pdf_document.save(temp_pdf)
-        pdf_document.close()
-
-        reader = PyPDF2.PdfReader(temp_pdf)
-        writer = PyPDF2.PdfWriter()
-
-        text_data = {
-            "suburb": (
-                suburb,
-                21,
-                (11.2 / 210 * A4[0], 20.8 / 297 * A4[1]),
-                "Inter-Bold",
-            ),
-            "address": (
-                address,
-                12,
-                (11.2 / 210 * A4[0], 28.9 / 297 * A4[1]),
-                "Inter-Regular",
-            ),
-            "lot_number": (
-                f"LOT {lot}",
-                8,
-                (22.64 / 210 * A4[0], 37.5 / 297 * A4[1]),
-                "Inter-SemiBold",
-                (1, 1, 1),
-                "center",
-            ),
-            "package_price": (
-                f"Package Price",
-                16,
-                (161 / 210 * A4[0], 17.30 / 297 * A4[1]),
-                "Inter-Bold",
-            ),
-            "price": (
-                convert_to_currency(price),
-                16,
-                (161 / 210 * A4[0], 24.30 / 297 * A4[1]),
-                "Inter-Bold",
-                # (0, 0, 0),
-            ),
-            "land_size": (
-                f"{land_size}m²",
-                10,
-                (32.0 / 210 * A4[0], 53.30 / 297 * A4[1]),
-                "Inter-Light",
-            ),
-            "house_size": (
-                f"{house_size}m²",
-                10,
-                (35.0 / 210 * A4[0], 62.56 / 297 * A4[1]),
-                "Inter-Light",
-            ),
-            "lot_width": (
-                f"{lot_width}m",
-                10,
-                (41.45 / 210 * A4[0], 72.12 / 297 * A4[1]),
-                "Inter-Light",
-            ),
-            "land_price": (
-                convert_to_currency(land_price),
-                10,
-                (36.05 / 210 * A4[0], 88.76 / 297 * A4[1]),
-                "Inter-Light",
-            ),
-            "rego": (
-                convert_to_syd_time(rego),
-                10,
-                (11.744 / 210 * A4[0], 108.0 / 297 * A4[1]),
-                "Inter-Light",
-            ),
-            "floorplan": (
-                floorplan,
-                14,
-                (98.844 / 210 * A4[0], 119.0 / 297 * A4[1]),
-                "Inter-Bold",
-                (0, 0, 0),
-                "center",
-            ),
-            "beds": (
-                str(bedroom),
-                12,
-                (136.744 / 210 * A4[0], 119.3 / 297 * A4[1]),
-                "Inter-Regular",
-                (0, 0, 0),
-            ),
-            "baths": (
-                str(bathroom),
-                12,
-                (165.744 / 210 * A4[0], 119.3 / 297 * A4[1]),
-                "Inter-Regular",
-                (0, 0, 0),
-            ),
-            "car_spaces": (
-                str(parking_slot),
-                12,
-                (194.744 / 210 * A4[0], 119.3 / 297 * A4[1]),
-                "Inter-Regular",
-                (0, 0, 0),
-            ),
-        }
-        add_all_text_to_pdf(writer, reader.pages[0], text_data)
-
-        with open(output_pdf, "wb") as f_out:
-            writer.write(f_out)
-
-        print(f"Flyer generated: {output_pdf}")
-
-        upload_path = f"/flyer/{flyer_id}_{now}.pdf"
-
-        with open(output_pdf, "rb") as f:
-            dbx.files_upload(
-                f.read(),
-                upload_path,
+        with requests.Session() as session, open(
+            BANNER_PATH, "rb"
+        ) as banner_file, open(EMPTY_DIGITAL_PATH, "rb") as empty_digital_file, open(
+            EMPTY_PRINTABLE_PATH, "rb"
+        ) as empty_printable_file:
+            facade = Image(session.get(facade_file_url).content)
+            floorplan = PDF(
+                fitz.open(stream=BytesIO(session.get(floorplan_file_url).content))
             )
+            banner = Image(banner_file.read())
+            empty_digital = PDF(fitz.open(empty_digital_file))
+            empty_printable = PDF(fitz.open(empty_printable_file))
 
-        print("Uploaded to Dropbox")
-        return upload_path
+        empty_digital.insert_font(Font.INTER_LIGHT)
+        empty_digital.insert_font(Font.INTER_REGULAR)
+        empty_digital.insert_font(Font.INTER_BOLD)
+        empty_digital.insert_font(Font.INTER_SEMIBOLD)
+
+        empty_digital.add_image(facade, position=(0, 0), stretch=True)
+        empty_digital.add_image(
+            banner, position=(841.8900146484375 - 179.2, 44), image_size=(179.2, 56)
+        )
+        empty_digital.add_pdf(
+            floorplan,
+            position=(35, 632),
+            size=(175 / 297 * 841.8900146484375, 125 / 420 * 1190.550048828125),
+        )
+
+        digital_texts = [
+            # Lot info
+            Text(text=suburb, **TEXT_DATA["digital"]["lot_info"]["suburb"]),
+            Text(text=address, **TEXT_DATA["digital"]["lot_info"]["address"]),
+            Text(text=f"LOT {lot}", **TEXT_DATA["digital"]["lot_info"]["lot_number"]),
+            Text(
+                text=convert_to_syd_time(rego),
+                **TEXT_DATA["digital"]["lot_info"]["date"],
+            ),
+            Text(
+                text=f"{land_size}m²", **TEXT_DATA["digital"]["lot_info"]["land_size"]
+            ),
+            Text(
+                text=f"{house_size}m²", **TEXT_DATA["digital"]["lot_info"]["house_size"]
+            ),
+            Text(text=f"{lot_width}m", **TEXT_DATA["digital"]["lot_info"]["lot_width"]),
+            Text(
+                text=convert_to_currency(land_price),
+                **TEXT_DATA["digital"]["lot_info"]["land_price"],
+            ),
+            Text(
+                text=convert_to_currency(house_price),
+                **TEXT_DATA["digital"]["lot_info"]["house_price"],
+            ),
+            Text(
+                text=convert_to_currency(price),
+                **TEXT_DATA["digital"]["lot_info"]["package_price"],
+            ),
+            # Banner text
+            Text(
+                text="Package Price",
+                **TEXT_DATA["digital"]["banner"]["label"],
+            ),
+            Text(
+                text=convert_to_currency(price),
+                **TEXT_DATA["digital"]["banner"]["price"],
+            ),
+            # Floorplan info
+            Text(
+                text=floorplan_model,
+                **TEXT_DATA["digital"]["floorplan_info"]["floorplan_model"],
+            ),
+            Text(
+                text=str(bedroom), **TEXT_DATA["digital"]["floorplan_info"]["bedrooms"]
+            ),
+            Text(
+                text=str(bathroom),
+                **TEXT_DATA["digital"]["floorplan_info"]["bathrooms"],
+            ),
+            Text(
+                text=str(parking_slot),
+                **TEXT_DATA["digital"]["floorplan_info"]["garages"],
+            ),
+        ]
+
+        for text in digital_texts:
+            empty_digital.add_text(text)
+
+        empty_digital.pdf_file.save(digital_path)
+        empty_digital.pdf_file.close()
+
+        empty_printable.insert_font(Font.INTER_LIGHT)
+        empty_printable.insert_font(Font.INTER_REGULAR)
+        empty_printable.insert_font(Font.INTER_BOLD)
+        empty_printable.insert_font(Font.INTER_SEMIBOLD)
+
+        empty_printable.add_image(facade, position=(0, 0), stretch=True)
+        empty_printable.add_image(
+            banner, position=(841.8900146484375 - 179.2, 44), image_size=(179.2, 56)
+        )
+        empty_printable.add_pdf(
+            floorplan,
+            position=(33, 47),
+            size=(175 / 297 * 841.8900146484375, 125 / 420 * 1190.550048828125),
+            page_number=1,
+        )
+
+        printable_texts_1 = [
+            Text(
+                text=suburb,
+                **TEXT_DATA["print"]["lot_info"]["suburb"],
+            ),
+            Text(
+                text=address,
+                **TEXT_DATA["print"]["lot_info"]["address"],
+            ),
+            Text(
+                text=f"LOT {lot}",
+                **TEXT_DATA["print"]["lot_info"]["lot_number"],
+            ),
+            Text(
+                text=convert_to_syd_time(rego),
+                **TEXT_DATA["print"]["lot_info"]["date"],
+            ),
+            Text(
+                text=f"{land_size}m²",
+                **TEXT_DATA["print"]["lot_info"]["land_size"],
+            ),
+            Text(
+                text=f"{house_size}m²",
+                **TEXT_DATA["print"]["lot_info"]["house_size"],
+            ),
+            Text(
+                text=f"{lot_width}m",
+                **TEXT_DATA["print"]["lot_info"]["lot_width"],
+            ),
+            Text(
+                text=convert_to_currency(land_price),
+                **TEXT_DATA["print"]["lot_info"]["land_price"],
+            ),
+            Text(
+                text=convert_to_currency(house_price),
+                **TEXT_DATA["print"]["lot_info"]["house_price"],
+            ),
+            Text(
+                text=convert_to_currency(price),
+                **TEXT_DATA["print"]["lot_info"]["package_price"],
+            ),
+            Text(
+                text=str(bedroom),
+                **TEXT_DATA["print"]["lot_info"]["bedrooms"],
+            ),
+            Text(
+                text=str(bathroom),
+                **TEXT_DATA["print"]["lot_info"]["bathrooms"],
+            ),
+            Text(
+                text=str(parking_slot),
+                **TEXT_DATA["print"]["lot_info"]["garages"],
+            ),
+            # Banner text
+            Text(
+                text="Package Price",
+                **TEXT_DATA["print"]["banner"]["label"],
+            ),
+            Text(
+                text=convert_to_currency(price),
+                **TEXT_DATA["print"]["banner"]["price"],
+            ),
+        ]
+
+        for text in printable_texts_1:
+            empty_printable.add_text(text, 0)
+
+        printable_texts_2 = [
+            Text(
+                text=floorplan_model,
+                **TEXT_DATA["print"]["floorplan_info"]["floorplan_model"],
+            ),
+            Text(
+                text=str(bedroom),
+                **TEXT_DATA["print"]["floorplan_info"]["bedrooms"],
+            ),
+            Text(
+                text=str(bathroom),
+                **TEXT_DATA["print"]["floorplan_info"]["bathrooms"],
+            ),
+            Text(
+                text=str(parking_slot),
+                **TEXT_DATA["print"]["floorplan_info"]["garages"],
+            ),
+        ]
+
+        for text in printable_texts_2:
+            empty_printable.add_text(text, 1)
+
+        empty_printable.pdf_file.save(printable_path)
+        empty_printable.pdf_file.close()
+
+        with open(digital_path, "rb") as digital_file:
+            dbx.files_upload(digital_file.read(), dropbox_digital_path)
+
+        with open(printable_path, "rb") as printable_file:
+            dbx.files_upload(printable_file.read(), dropbox_printable_path)
+
+        return {
+            "digital_path": dropbox_digital_path,
+            "printable_path": dropbox_printable_path,
+        }
 
     except Exception as e:
         print(f"Error generating flyer: {str(e)}")
@@ -200,8 +282,8 @@ def generate_flyer(
 
     finally:
         print("Cleaning up...")
-        if os.path.exists(temp_pdf):
-            os.remove(temp_pdf)
-        if os.path.exists(output_pdf):
-            os.remove(output_pdf)
+        if os.path.exists(digital_path):
+            os.remove(digital_path)
+        if os.path.exists(printable_path):
+            os.remove(printable_path)
         print("Cleaned up, task complete")
