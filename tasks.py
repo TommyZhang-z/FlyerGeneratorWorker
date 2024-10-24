@@ -11,6 +11,7 @@ import requests
 import logging
 import config as cfg
 import fitz
+from google_drive import upload_or_replace_file, TARGET_FOLDER_ID
 
 load_dotenv(".env.local")
 
@@ -41,6 +42,7 @@ dbx = dropbox.Dropbox(
 @app.task
 def generate_flyer(
     flyer_id,
+    generate,
     property_id,
     facade,
     floorplan_model,
@@ -59,17 +61,15 @@ def generate_flyer(
     parking_slot,
     facade_file_url,
     floorplan_file_url,
-    generate,
 ):
     logging.info(f"generating flyer [#{flyer_id}] ...")
 
-    now = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
-    file_name = f"{flyer_id}_{now}.pdf"
+    file_name = f"{flyer_id}.pdf"
+    digital_file_name = f"{flyer_id}_digital.pdf"
+    printable_file_name = f"{flyer_id}_printable.pdf"
 
-    digital_path = os.path.join(cfg.DIGITAL_DIR, file_name)
-    printable_path = os.path.join(cfg.PRINTABLE_DIR, file_name)
-    dropbox_digital_path = f"{cfg.DROPBOX_DIGITAL_PATH}/{file_name}"
-    dropbox_printable_path = f"{cfg.DROPBOX_PRINTABLE_PATH}/{file_name}"
+    digital_path = os.path.join(cfg.DIGITAL_DIR, digital_file_name)
+    printable_path = os.path.join(cfg.PRINTABLE_DIR, printable_file_name)
 
     try:
         with requests.Session() as session, open(
@@ -269,25 +269,34 @@ def generate_flyer(
         empty_printable.pdf_file.save(printable_path)
         empty_printable.pdf_file.close()
 
-        with open(digital_path, "rb") as digital_file:
-            dbx.files_upload(digital_file.read(), dropbox_digital_path)
+        # Upload to Google Drive
+        upload_or_replace_file(
+            digital_file_name,
+            digital_path,
+            "application/pdf",
+            parent_folder_id=TARGET_FOLDER_ID,
+        )
 
-        with open(printable_path, "rb") as printable_file:
-            dbx.files_upload(printable_file.read(), dropbox_printable_path)
+        upload_or_replace_file(
+            printable_file_name,
+            printable_path,
+            "application/pdf",
+            parent_folder_id=TARGET_FOLDER_ID,
+        )
 
         return {
-            "digital_path": dropbox_digital_path,
-            "printable_path": dropbox_printable_path,
+            "digital_path": digital_path,
+            "printable_path": printable_path,
         }
 
     except Exception as e:
-        print(f"Error generating flyer: {str(e)}")
+        logging.error(f"Error generating flyer: {str(e)}")
         raise
 
     finally:
-        print("Cleaning up...")
+        logging.warning("Cleaning up...")
         if os.path.exists(digital_path):
             os.remove(digital_path)
         if os.path.exists(printable_path):
             os.remove(printable_path)
-        print("Cleaned up, task complete")
+        logging.warning("Cleaned up, task complete")

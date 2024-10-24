@@ -1,9 +1,5 @@
-from io import BytesIO
 import fitz
-from helper import convert_to_currency, convert_to_syd_time
-from image_utils import add_facade
 from models import Image, PDF, Text, Font
-import config as cfg
 from data import TEXT_DATA
 
 # Test variables
