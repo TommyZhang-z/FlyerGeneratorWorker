@@ -63,28 +63,29 @@ def generate_flyer(
     floorplan_file_url,
 ):
     logging.info(f"generating flyer [#{flyer_id}] ...")
-
-    file_name = f"{flyer_id}.pdf"
+    facade_name = facade
     digital_file_name = f"{flyer_id}_digital.pdf"
-    printable_file_name = f"{flyer_id}_printable.pdf"
 
     digital_path = os.path.join(cfg.DIGITAL_DIR, digital_file_name)
-    printable_path = os.path.join(cfg.PRINTABLE_DIR, printable_file_name)
 
     try:
-        with requests.Session() as session, open(
-            BANNER_PATH, "rb"
-        ) as banner_file, open(EMPTY_DIGITAL_PATH, "rb") as empty_digital_file, open(
-            EMPTY_PRINTABLE_PATH, "rb"
-        ) as empty_printable_file:
+        with (
+            requests.Session() as session,
+            open(BANNER_PATH, "rb") as banner_file,
+            open(EMPTY_DIGITAL_PATH, "rb") as empty_digital_file,
+            # open(EMPTY_PRINTABLE_PATH, "rb") as empty_printable_file,
+            open(
+                os.path.join(cfg.ASSETS_DIR, "fc_names", f"{facade_name}.png"), "rb"
+            ) as png_file,
+        ):
             facade = Image(session.get(facade_file_url).content)
             floorplan = PDF(
                 fitz.open(stream=BytesIO(session.get(floorplan_file_url).content))
             )
             banner = Image(banner_file.read())
             empty_digital = PDF(fitz.open(empty_digital_file))
-            empty_printable = PDF(fitz.open(empty_printable_file))
-
+            # empty_printable = PDF(fitz.open(empty_printable_file))
+            png_image = Image(png_file.read())
         empty_digital.insert_font(Font.INTER_LIGHT)
         empty_digital.insert_font(Font.INTER_REGULAR)
         empty_digital.insert_font(Font.INTER_BOLD)
@@ -98,6 +99,21 @@ def generate_flyer(
             floorplan,
             position=(35, 632),
             size=(175 / 297 * 841.8900146484375, 125 / 420 * 1190.550048828125),
+        )
+
+        page_width = 841.8900146484375
+        page_height = 1190.550048828125
+        image_width = 23.52
+        image_height = 6.34
+        image_width_pt = image_width * 2.8346  # ≈ 66.67 points
+        image_height_pt = image_height * 2.8346  # ≈ 17.98 points
+        x_pos = page_width - image_width_pt - 10
+        y_pos = 420
+
+        empty_digital.add_image(
+            png_image,
+            position=(x_pos, y_pos),
+            image_size=(image_width_pt, image_height_pt),
         )
 
         digital_texts = [
@@ -161,114 +177,6 @@ def generate_flyer(
         empty_digital.pdf_file.save(digital_path)
         empty_digital.pdf_file.close()
 
-        empty_printable.insert_font(Font.INTER_LIGHT)
-        empty_printable.insert_font(Font.INTER_REGULAR)
-        empty_printable.insert_font(Font.INTER_BOLD)
-        empty_printable.insert_font(Font.INTER_SEMIBOLD)
-
-        empty_printable.add_image(facade, position=(0, 0), stretch=True)
-        empty_printable.add_image(
-            banner, position=(841.8900146484375 - 179.2, 44), image_size=(179.2, 56)
-        )
-        empty_printable.add_pdf(
-            floorplan,
-            position=(33, 47),
-            size=(175 / 297 * 841.8900146484375, 125 / 420 * 1190.550048828125),
-            page_number=1,
-        )
-
-        printable_texts_1 = [
-            Text(
-                text=suburb,
-                **TEXT_DATA["print"]["lot_info"]["suburb"],
-            ),
-            Text(
-                text=address,
-                **TEXT_DATA["print"]["lot_info"]["address"],
-            ),
-            Text(
-                text=f"LOT {lot}",
-                **TEXT_DATA["print"]["lot_info"]["lot_number"],
-            ),
-            Text(
-                text=convert_to_syd_time(rego),
-                **TEXT_DATA["print"]["lot_info"]["date"],
-            ),
-            Text(
-                text=f"{land_size}m²",
-                **TEXT_DATA["print"]["lot_info"]["land_size"],
-            ),
-            Text(
-                text=f"{house_size}m²",
-                **TEXT_DATA["print"]["lot_info"]["house_size"],
-            ),
-            Text(
-                text=f"{lot_width}m",
-                **TEXT_DATA["print"]["lot_info"]["lot_width"],
-            ),
-            Text(
-                text=convert_to_currency(land_price),
-                **TEXT_DATA["print"]["lot_info"]["land_price"],
-            ),
-            Text(
-                text=convert_to_currency(house_price),
-                **TEXT_DATA["print"]["lot_info"]["house_price"],
-            ),
-            Text(
-                text=convert_to_currency(price),
-                **TEXT_DATA["print"]["lot_info"]["package_price"],
-            ),
-            Text(
-                text=str(bedroom),
-                **TEXT_DATA["print"]["lot_info"]["bedrooms"],
-            ),
-            Text(
-                text=str(bathroom),
-                **TEXT_DATA["print"]["lot_info"]["bathrooms"],
-            ),
-            Text(
-                text=str(parking_slot),
-                **TEXT_DATA["print"]["lot_info"]["garages"],
-            ),
-            # Banner text
-            Text(
-                text="Package Price",
-                **TEXT_DATA["print"]["banner"]["label"],
-            ),
-            Text(
-                text=convert_to_currency(price),
-                **TEXT_DATA["print"]["banner"]["price"],
-            ),
-        ]
-
-        for text in printable_texts_1:
-            empty_printable.add_text(text, 0)
-
-        printable_texts_2 = [
-            Text(
-                text=floorplan_model,
-                **TEXT_DATA["print"]["floorplan_info"]["floorplan_model"],
-            ),
-            Text(
-                text=str(bedroom),
-                **TEXT_DATA["print"]["floorplan_info"]["bedrooms"],
-            ),
-            Text(
-                text=str(bathroom),
-                **TEXT_DATA["print"]["floorplan_info"]["bathrooms"],
-            ),
-            Text(
-                text=str(parking_slot),
-                **TEXT_DATA["print"]["floorplan_info"]["garages"],
-            ),
-        ]
-
-        for text in printable_texts_2:
-            empty_printable.add_text(text, 1)
-
-        empty_printable.pdf_file.save(printable_path)
-        empty_printable.pdf_file.close()
-
         # Upload to Google Drive
         upload_or_replace_file(
             digital_file_name,
@@ -277,16 +185,8 @@ def generate_flyer(
             parent_folder_id=TARGET_FOLDER_ID,
         )
 
-        upload_or_replace_file(
-            printable_file_name,
-            printable_path,
-            "application/pdf",
-            parent_folder_id=TARGET_FOLDER_ID,
-        )
-
         return {
             "digital_path": digital_path,
-            "printable_path": printable_path,
         }
 
     except Exception as e:
@@ -297,6 +197,4 @@ def generate_flyer(
         logging.warning("Cleaning up...")
         if os.path.exists(digital_path):
             os.remove(digital_path)
-        if os.path.exists(printable_path):
-            os.remove(printable_path)
         logging.warning("Cleaned up, task complete")

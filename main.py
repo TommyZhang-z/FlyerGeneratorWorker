@@ -1,6 +1,8 @@
+from io import BytesIO
 import fitz
 from models import Image, PDF, Text, Font
 from data import TEXT_DATA
+import requests
 
 # Test variables
 flyer_id = "TEST002"
@@ -19,14 +21,14 @@ facade_file_url = (
     "https://drive.google.com/uc?id=10T_oSsXE3zw_e6np0Z9jKd9atwBytfQ4&export=download"
 )
 floorplan_file_url = (
-    "https://drive.google.com/uc?export=download&id=1QU6PpSOG-KODKFaGoOdCnJMoiH4fXGbH"
+    "https://drive.google.com/uc?id=1eULTx3pBUxaaW3UsA9Cnbf6RswiAcpMQ&export=download"
 )
 bedroom = 6
 bathroom = 4
 parking_slot = 2
 
 
-pdf_document = fitz.open("./flyer/Empty_Digital.pdf")
+pdf_document = fitz.open("./assets/Empty_Digital.pdf")
 digital_pdf = PDF(pdf_document)
 
 # register fonts
@@ -36,22 +38,43 @@ digital_pdf.insert_font(Font.INTER_BOLD)
 digital_pdf.insert_font(Font.INTER_SEMIBOLD)
 
 
-with open("./flyer/facade.jpg", "rb") as facade_file, open(
-    "./flyer/banner.png", "rb"
-) as banner_file, open("./flyer/LARCH-24.pdf", "rb") as fp_file:
-    facade = Image(facade_file.read())
+with (
+    requests.Session() as session,
+    open("./assets/banner.png", "rb") as banner_file,
+    open("./assets/Empty_Digital.pdf", "rb") as empty_digital_file,
+    open("./assets/Empty_Printable.pdf", "rb") as empty_printable_file,
+    open("./assets/fc_names/urban1.png", "rb") as png_file,
+):
+    facade = Image(session.get(facade_file_url).content)
+    floorplan = PDF(fitz.open(stream=BytesIO(session.get(floorplan_file_url).content)))
     banner = Image(banner_file.read())
-    fp = PDF(fitz.open(fp_file))
-
+    png_image = Image(png_file.read())
+    empty_digital = PDF(fitz.open(empty_digital_file))
+    empty_printable = PDF(fitz.open(empty_printable_file))
 # To add an image without stretching (using original dimensions)
 digital_pdf.add_image(facade, position=(0, 0), stretch=True)
 digital_pdf.add_image(
     banner, position=(841.8900146484375 - 179.2, 44), image_size=(179.2, 56)
 )
 digital_pdf.add_pdf(
-    fp,
+    floorplan,
     position=(35, 632),
     size=(175 / 297 * 841.8900146484375, 125 / 420 * 1190.550048828125),
+)
+
+# For digital PDF - Add before saving
+# Calculate middle right position (adjust x_offset as needed)
+page_width = 841.8900146484375
+page_height = 1190.550048828125
+image_width = 23.52
+image_height = 6.34
+image_width_pt = 23.52 * 2.8346  # ≈ 66.67 points
+image_height_pt = 6.34 * 2.8346  # ≈ 17.98 points
+x_pos = page_width - image_width_pt - 10
+y_pos = 420
+
+digital_pdf.add_image(
+    png_image, position=(x_pos, y_pos), image_size=(image_width_pt, image_height_pt)
 )
 
 digital_texts = [
@@ -102,7 +125,7 @@ digital_pdf.pdf_file.save("./flyer/Digital.pdf")
 digital_pdf.pdf_file.close()
 
 
-pdf_document = fitz.open("./flyer/Empty_Printable.pdf")
+pdf_document = fitz.open("./assets/Empty_Printable.pdf")
 printable_pdf = PDF(pdf_document)
 
 printable_pdf.insert_font(Font.INTER_LIGHT)
@@ -117,12 +140,19 @@ printable_pdf.add_image(
     banner, position=(841.8900146484375 - 179.2, 44), image_size=(179.2, 56)
 )
 printable_pdf.add_pdf(
-    fp,
+    floorplan,
     position=(33, 47),
     size=(175 / 297 * 841.8900146484375, 125 / 420 * 1190.550048828125),
     page_number=1,
 )
 
+# For printable PDF - Add before saving
+printable_pdf.add_image(
+    png_image,
+    position=(x_pos, y_pos),
+    image_size=(image_width, image_height),
+    page_number=0,  # Add to first page
+)
 
 printable_texts_1 = [
     Text(
