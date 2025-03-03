@@ -74,9 +74,9 @@ def generate_flyer(
             open(BANNER_PATH, "rb") as banner_file,
             open(EMPTY_DIGITAL_PATH, "rb") as empty_digital_file,
             # open(EMPTY_PRINTABLE_PATH, "rb") as empty_printable_file,
-            open(
-                os.path.join(cfg.ASSETS_DIR, "fc_names", f"{facade_name}.png"), "rb"
-            ) as png_file,
+            # open(
+            #     os.path.join(cfg.ASSETS_DIR, "fc_names", f"{facade_name}.png"), "rb"
+            # ) as png_file,
         ):
             facade = Image(session.get(facade_file_url).content)
             floorplan = PDF(
@@ -85,7 +85,7 @@ def generate_flyer(
             banner = Image(banner_file.read())
             empty_digital = PDF(fitz.open(empty_digital_file))
             # empty_printable = PDF(fitz.open(empty_printable_file))
-            png_image = Image(png_file.read())
+            # png_image = Image(png_file.read())
         empty_digital.insert_font(Font.INTER_LIGHT)
         empty_digital.insert_font(Font.INTER_REGULAR)
         empty_digital.insert_font(Font.INTER_BOLD)
@@ -110,11 +110,18 @@ def generate_flyer(
         x_pos = page_width - image_width_pt - 10
         y_pos = 420
 
-        empty_digital.add_image(
-            png_image,
-            position=(x_pos, y_pos),
-            image_size=(image_width_pt, image_height_pt),
-        )
+        if os.path.exists(
+            os.path.join(cfg.ASSETS_DIR, "fc_names", f"{facade_name}.png")
+        ):
+            with open(
+                os.path.join(cfg.ASSETS_DIR, "fc_names", f"{facade_name}.png"), "rb"
+            ) as png_file:
+                png_image = Image(png_file.read())
+                empty_digital.add_image(
+                    png_image,
+                    position=(x_pos, y_pos),
+                    image_size=(image_width_pt, image_height_pt),
+                )
 
         digital_texts = [
             # Lot info
