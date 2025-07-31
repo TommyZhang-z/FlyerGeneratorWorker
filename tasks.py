@@ -2,7 +2,7 @@ from io import BytesIO
 import os
 from dotenv import load_dotenv
 from celery import Celery
-from data import TEXT_DATA
+from data import TEXT_DATA as TEXT_DATA_DICT
 from models import PDF, Font, Image, Text
 import dropbox
 from helper import convert_to_currency, convert_to_syd_time
@@ -66,6 +66,7 @@ def generate_flyer(
 
     digital_path = os.path.join(cfg.DIGITAL_DIR, digital_file_name)
     EMPTY_PATH = os.path.join(cfg.ASSETS_DIR, f"{template_name}.pdf")
+    template_data = TEXT_DATA_DICT[template_name]
 
     try:
         with (
@@ -120,56 +121,64 @@ def generate_flyer(
 
         digital_texts = [
             # Lot info
-            Text(text=suburb, **TEXT_DATA["digital"]["lot_info"]["suburb"]),
-            Text(text=address, **TEXT_DATA["digital"]["lot_info"]["address"]),
-            Text(text=f"LOT {lot}", **TEXT_DATA["digital"]["lot_info"]["lot_number"]),
+            Text(text=suburb, **template_data["digital"]["lot_info"]["suburb"]),
+            Text(text=address, **template_data["digital"]["lot_info"]["address"]),
+            Text(
+                text=f"LOT {lot}", **template_data["digital"]["lot_info"]["lot_number"]
+            ),
             Text(
                 text=convert_to_syd_time(rego),
-                **TEXT_DATA["digital"]["lot_info"]["date"],
+                **template_data["digital"]["lot_info"]["date"],
             ),
             Text(
-                text=f"{land_size}m²", **TEXT_DATA["digital"]["lot_info"]["land_size"]
+                text=f"{land_size}m²",
+                **template_data["digital"]["lot_info"]["land_size"],
             ),
             Text(
-                text=f"{house_size}m²", **TEXT_DATA["digital"]["lot_info"]["house_size"]
+                text=f"{house_size}m²",
+                **template_data["digital"]["lot_info"]["house_size"],
             ),
-            Text(text=f"{lot_width}m", **TEXT_DATA["digital"]["lot_info"]["lot_width"]),
+            Text(
+                text=f"{lot_width}m",
+                **template_data["digital"]["lot_info"]["lot_width"],
+            ),
             Text(
                 text=convert_to_currency(land_price),
-                **TEXT_DATA["digital"]["lot_info"]["land_price"],
+                **template_data["digital"]["lot_info"]["land_price"],
             ),
             Text(
                 text=convert_to_currency(house_price),
-                **TEXT_DATA["digital"]["lot_info"]["house_price"],
+                **template_data["digital"]["lot_info"]["house_price"],
             ),
             Text(
                 text=convert_to_currency(price),
-                **TEXT_DATA["digital"]["lot_info"]["package_price"],
+                **template_data["digital"]["lot_info"]["package_price"],
             ),
             # Banner text
             Text(
                 text="Package Price",
-                **TEXT_DATA["digital"]["banner"]["label"],
+                **template_data["digital"]["banner"]["label"],
             ),
             Text(
                 text=convert_to_currency(price),
-                **TEXT_DATA["digital"]["banner"]["price"],
+                **template_data["digital"]["banner"]["price"],
             ),
             # Floorplan info
             Text(
                 text=floorplan_model,
-                **TEXT_DATA["digital"]["floorplan_info"]["floorplan_model"],
+                **template_data["digital"]["floorplan_info"]["floorplan_model"],
             ),
             Text(
-                text=str(bedroom), **TEXT_DATA["digital"]["floorplan_info"]["bedrooms"]
+                text=str(bedroom),
+                **template_data["digital"]["floorplan_info"]["bedrooms"],
             ),
             Text(
                 text=str(bathroom),
-                **TEXT_DATA["digital"]["floorplan_info"]["bathrooms"],
+                **template_data["digital"]["floorplan_info"]["bathrooms"],
             ),
             Text(
                 text=str(parking_slot),
-                **TEXT_DATA["digital"]["floorplan_info"]["garages"],
+                **template_data["digital"]["floorplan_info"]["garages"],
             ),
         ]
 
