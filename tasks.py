@@ -5,7 +5,6 @@ from celery import Celery
 from data import TEXT_DATA
 from models import PDF, Font, Image, Text
 import dropbox
-import datetime
 from helper import convert_to_currency, convert_to_syd_time
 import requests
 import logging
@@ -26,8 +25,6 @@ DROPBOX_APP_SECRET = os.getenv("DROPBOX_APP_SECRET", "")
 DROPBOX_REFRESH_TOKEN = os.getenv("DROPBOX_REFRESH_TOKEN", "")
 
 BANNER_PATH = os.path.join(cfg.ASSETS_DIR, "banner.png")
-EMPTY_DIGITAL_PATH = os.path.join(cfg.ASSETS_DIR, "Empty_Digital.pdf")
-EMPTY_PRINTABLE_PATH = os.path.join(cfg.ASSETS_DIR, "Empty_Printable.pdf")
 
 # Initialize Celery app
 app = Celery("tasks", broker=REDIS_URL, backend=REDIS_URL)
@@ -61,41 +58,39 @@ def generate_flyer(
     parking_slot,
     facade_file_url,
     floorplan_file_url,
+    template_name="SEVENSTAR",
 ):
     logging.info(f"generating flyer [#{flyer_id}] ...")
     facade_name = facade
-    digital_file_name = f"{flyer_id}_digital.pdf"
+    digital_file_name = f"{flyer_id}.pdf"
 
     digital_path = os.path.join(cfg.DIGITAL_DIR, digital_file_name)
+    EMPTY_PATH = os.path.join(cfg.ASSETS_DIR, f"{template_name}.pdf")
 
     try:
         with (
             requests.Session() as session,
             open(BANNER_PATH, "rb") as banner_file,
-            open(EMPTY_DIGITAL_PATH, "rb") as empty_digital_file,
-            # open(EMPTY_PRINTABLE_PATH, "rb") as empty_printable_file,
-            # open(
-            #     os.path.join(cfg.ASSETS_DIR, "fc_names", f"{facade_name}.png"), "rb"
-            # ) as png_file,
+            open(EMPTY_PATH, "rb") as empty_template_file,
         ):
             facade = Image(session.get(facade_file_url).content)
             floorplan = PDF(
                 fitz.open(stream=BytesIO(session.get(floorplan_file_url).content))
             )
             banner = Image(banner_file.read())
-            empty_digital = PDF(fitz.open(empty_digital_file))
+            empty_template = PDF(fitz.open(empty_template_file))
             # empty_printable = PDF(fitz.open(empty_printable_file))
             # png_image = Image(png_file.read())
-        empty_digital.insert_font(Font.INTER_LIGHT)
-        empty_digital.insert_font(Font.INTER_REGULAR)
-        empty_digital.insert_font(Font.INTER_BOLD)
-        empty_digital.insert_font(Font.INTER_SEMIBOLD)
+        empty_template.insert_font(Font.INTER_LIGHT)
+        empty_template.insert_font(Font.INTER_REGULAR)
+        empty_template.insert_font(Font.INTER_BOLD)
+        empty_template.insert_font(Font.INTER_SEMIBOLD)
 
-        empty_digital.add_image(facade, position=(0, 0), stretch=True)
-        empty_digital.add_image(
+        empty_template.add_image(facade, position=(0, 0), stretch=True)
+        empty_template.add_image(
             banner, position=(841.8900146484375 - 179.2, 44), image_size=(179.2, 56)
         )
-        empty_digital.add_pdf(
+        empty_template.add_pdf(
             floorplan,
             position=(35, 632),
             size=(175 / 297 * 841.8900146484375, 125 / 420 * 1190.550048828125),
@@ -117,7 +112,7 @@ def generate_flyer(
                 os.path.join(cfg.ASSETS_DIR, "fc_names", f"{facade_name}.png"), "rb"
             ) as png_file:
                 png_image = Image(png_file.read())
-                empty_digital.add_image(
+                empty_template.add_image(
                     png_image,
                     position=(x_pos, y_pos),
                     image_size=(image_width_pt, image_height_pt),
@@ -179,10 +174,10 @@ def generate_flyer(
         ]
 
         for text in digital_texts:
-            empty_digital.add_text(text)
+            empty_template.add_text(text)
 
-        empty_digital.pdf_file.save(digital_path)
-        empty_digital.pdf_file.close()
+        empty_template.pdf_file.save(digital_path)
+        empty_template.pdf_file.close()
 
         # Upload to Google Drive
         upload_or_replace_file(

@@ -18,11 +18,13 @@ def convert_to_syd_time(time_str):
         return time_str
 
 
-def convert_to_currency(price: int | float) -> str:
+def convert_to_currency(price: int | float | str) -> str:
     """
     Convert a price to a currency string
 
     >>> convert_to_currency(1000000)
     '$1,000,000'
     """
-    return f"${price:,}"
+    if isinstance(price, str):
+        return price
+    return f"${int(price):,}"
